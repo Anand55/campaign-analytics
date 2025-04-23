@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"campaign-analytics/models"
@@ -14,12 +16,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// AuthMiddleware checks for valid API key in Authorization header
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		expected := os.Getenv("API_KEY")
+		header := c.GetHeader("Authorization")
+		if expected == "" || !strings.HasPrefix(header, "Bearer ") || strings.TrimPrefix(header, "Bearer ") != expected {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		c.Next()
+	}
+}
+
 // GetCampaignInsights returns the latest metrics for a campaign from cache or DB
 func GetCampaignInsights(c *gin.Context) {
 	campaignID := c.Param("id")
-	cacheKey := fmt.Sprintf("campaign:%s:insights", campaignID)
+	from := c.Query("from")
+	to := c.Query("to")
+	platform := c.Query("platform")
 
-	// 1. Try Redis Cache
+	cacheKey := fmt.Sprintf("campaign:%s:insights:%s:%s:%s", campaignID, from, to, platform)
+
 	cached, err := storage.GetCache(cacheKey)
 	if err == nil && cached != "" {
 		var response models.CampaignMetrics
@@ -29,13 +47,30 @@ func GetCampaignInsights(c *gin.Context) {
 		}
 	}
 
-	// 2. Query Postgres for the latest campaign metrics
 	query := `SELECT campaign_id, platform, impressions, clicks, conversions, cost, revenue, timestamp
-			FROM campaign_metrics
-			WHERE campaign_id = $1
-			ORDER BY timestamp DESC LIMIT 1`
+			FROM campaign_metrics WHERE campaign_id = $1`
+	args := []interface{}{campaignID}
+	argIdx := 2
 
-	row := storage.DB.QueryRow(query, campaignID)
+	if from != "" {
+		query += fmt.Sprintf(" AND timestamp >= $%d", argIdx)
+		args = append(args, from)
+		argIdx++
+	}
+	if to != "" {
+		query += fmt.Sprintf(" AND timestamp <= $%d", argIdx)
+		args = append(args, to)
+		argIdx++
+	}
+	if platform != "" {
+		query += fmt.Sprintf(" AND platform = $%d", argIdx)
+		args = append(args, platform)
+		argIdx++
+	}
+
+	query += " ORDER BY timestamp DESC LIMIT 1"
+
+	row := storage.DB.QueryRow(query, args...)
 	var result models.CampaignMetrics
 	err = row.Scan(
 		&result.CampaignID,
@@ -56,11 +91,9 @@ func GetCampaignInsights(c *gin.Context) {
 		return
 	}
 
-	// 3. Cache the result
 	serialized, _ := json.Marshal(result)
 	storage.SetCache(cacheKey, string(serialized), 30*time.Second)
 
-	// 4. Return the response
 	c.JSON(http.StatusOK, gin.H{"data": result, "cached": false})
 }
 
@@ -68,7 +101,7 @@ func GetCampaignInsights(c *gin.Context) {
 func InitRouter() *gin.Engine {
 	r := gin.Default()
 
-	// Register routes
+	r.Use(AuthMiddleware())
 	r.GET("/campaign/:id/insights", GetCampaignInsights)
 
 	return r

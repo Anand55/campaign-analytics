@@ -17,6 +17,7 @@ services:
       - DB_NAME=campaigns
       - DB_PORT=5432
       - REDIS_HOST=redis
+      - API_KEY=secret123                    # ✅ Added API key for securing the API
     restart: always
 
   postgres:

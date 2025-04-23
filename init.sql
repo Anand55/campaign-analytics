@@ -7,5 +7,6 @@ CREATE TABLE IF NOT EXISTS campaign_metrics (
     conversions INT DEFAULT 0,
     cost NUMERIC(10, 2) DEFAULT 0.00,
     revenue NUMERIC(10, 2) DEFAULT 0.00,
-    timestamp TIMESTAMP NOT NULL
+    timestamp TIMESTAMP NOT NULL,
+    UNIQUE (campaign_id, timestamp)
 );
