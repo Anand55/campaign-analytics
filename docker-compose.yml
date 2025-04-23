@@ -1,0 +1,44 @@
+version: "3.8"  # Optional — can be removed as newer Compose ignores this
+
+services:
+  app:
+    build: .
+    image: campaign-analytics-app            # ✅ Image name for Docker to tag
+    container_name: campaign-analytics-app   # (Optional) Easier to debug with named container
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=campaigns
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+    restart: always
+
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: campaigns
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
