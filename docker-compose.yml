@@ -17,7 +17,21 @@ services:
       - DB_NAME=campaigns
       - DB_PORT=5432
       - REDIS_HOST=redis
-      - API_KEY=secret123                    # ✅ Added API key for securing the API
+      - API_KEY=secret123                    # ✅ API key for securing APIs
+      - DATA_SOURCE=fake                     # ✅ "fake" or "real"
+      - ENABLED_SOURCES=                     # ✅ only used when DATA_SOURCE=real
+      # --- Meta Ads Credentials (only needed if real) ---
+      - META_ACCESS_TOKEN=your_real_meta_token
+      - META_AD_ACCOUNT_ID=act_your_ad_account_id
+      # --- Google Ads Credentials (only needed if real) ---
+      - GOOGLE_ADS_ACCESS_TOKEN=your_google_access_token
+      - GOOGLE_ADS_CUSTOMER_ID=your_google_customer_id
+      # --- TikTok Ads Credentials (only needed if real) ---
+      - TIKTOK_ACCESS_TOKEN=your_tiktok_access_token
+      - TIKTOK_ADVERTISER_ID=your_tiktok_advertiser_id
+      # --- LinkedIn Ads Credentials (only needed if real) ---
+      - LINKEDIN_ACCESS_TOKEN=your_linkedin_access_token
+      - LINKEDIN_ACCOUNT_ID=your_linkedin_account_id
     restart: always
 
   postgres:
@@ -25,9 +39,9 @@ services:
     container_name: postgres
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: campaigns
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=campaigns
     ports:
       - "5432:5432"
     volumes:

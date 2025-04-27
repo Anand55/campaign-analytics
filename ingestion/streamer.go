@@ -14,7 +14,7 @@ import (
 var platforms = []string{"Meta", "Google", "LinkedIn", "TikTok"}
 
 // SimulateStream generates random campaign metrics and sends them for processing
-func SimulateStream() {
+func StartSimulator() {
 	go func() {
 		for {
 			metric := models.CampaignMetrics{

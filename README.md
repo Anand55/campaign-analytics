@@ -1,22 +1,21 @@
-// README.md
 # Real-Time Campaign Analytics System
 
 This project simulates a real-time ad campaign analytics platform that ingests, processes, stores, and serves campaign insights from multiple ad sources like Meta, Google, LinkedIn, and TikTok.
 
 ---
 
-## 📌 Task Overview
+## Task Overview
 
-Build a **scalable, fault-tolerant analytics system** that:
+Build a scalable, fault-tolerant analytics system that:
 - Ingests real-time ad campaign data
-- Computes metrics (CTR, ROAS, CPA, etc.)
+- Computes metrics (CTR, ROAS, CPA)
 - Stores the data in PostgreSQL
 - Caches insights in Redis for low-latency APIs
 - Exposes metrics via a REST API
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 [Ingestion Layer] ➜ [Processor Layer] ➜ [PostgreSQL]
@@ -32,42 +31,47 @@ Build a **scalable, fault-tolerant analytics system** that:
 
 ---
 
-## 🧠 Code Flow (High-Level)
+## Code Flow (High-Level)
 
-1. **main.go** initializes DB, Redis, and starts streaming + server
-2. **ingestion/streamer.go** simulates incoming campaign data
-3. **processor/aggregator.go** computes CTR, ROAS, CPA and stores in DB
-4. **storage/db.go** handles Postgres operations
-5. **storage/cache.go** handles Redis caching
-6. **api/server.go** defines endpoints, adds query filtering, auth middleware
+1. **main.go** initializes DB, Redis, selects ingestion mode, and starts server
+2. **ingestion/** handles real API fetchers or fake data simulation
+3. **processor/** computes metrics and sends them to storage
+4. **storage/** manages database inserts and Redis caching
+5. **api/** defines secured RESTful endpoints for fetching analytics
 
 ---
 
-## 📁 Project Structure
+## Directory Structure
 
 ```
 campaign-analytics/
-├── api/                 # Gin REST API
-├── ingestion/           # Real-time simulation of ad events
-├── processor/           # Metric calculation and persistence
-├── storage/             # DB and Redis integration
-├── models/              # Campaign struct definitions
-├── Dockerfile           # Go app container setup
-├── docker-compose.yml   # Multi-service definition
-├── init.sql             # SQL for table creation
+├── api/                 # REST API server
+├── ingestion/           # Ingestion from Meta, Google, TikTok, LinkedIn, or Fake
+│   ├── meta.go
+│   ├── google.go
+│   ├── tiktok.go
+│   ├── linkedin.go
+│   ├── dispatcher.go
+├── processor/           # Metric calculations
+├── storage/             # PostgreSQL and Redis operations
+├── models/              # Shared data models
+├── Dockerfile           # App container config
+├── docker-compose.yml   # Multi-service orchestration
+├── init.sql             # SQL schema setup
 ├── go.mod / go.sum      # Go module dependencies
-└── main.go              # Application bootstrap
+└── main.go              # Application entry point
 ```
 
 ---
 
-## 🚀 How to Run (Local)
+## Running Instructions
 
 ### Prerequisites
-- Go >= 1.21
-- Docker & Docker Compose
+- Go 1.21+
+- Docker and Docker Compose
 
-### Clone and Run:
+### Local Run (Simulated Fake Data)
+
 ```bash
 git clone <repo-url>
 cd campaign-analytics
@@ -77,101 +81,66 @@ go run main.go
 
 ---
 
-## 🚀 How to Run (Docker Compose)
+### Docker Compose Run
 
 ```bash
 docker-compose down -v --remove-orphans
 docker-compose up --build
 ```
 
-Visit:
-```
-http://localhost:8080/campaign/cmp-42/insights
-```
-(*replace `cmp-42` with one seen in logs*)
+Set in docker-compose:
+- For fake data simulation:
+  ```yaml
+  - DATA_SOURCE=fake
+  - ENABLED_SOURCES=
+  ```
+- For real data ingestion:
+  ```yaml
+  - DATA_SOURCE=real
+  - ENABLED_SOURCES=meta,google,tiktok,linkedin
+  ```
+
+You must provide correct API credentials for real mode.
 
 ---
 
-## 🔐 API Authentication
+## API Usage
 
-All requests to protected endpoints must include an API key:
-```http
-Authorization: Bearer secret123
+### Authentication
+All API requests must include:
+
+```bash
+Authorization: Bearer <API_KEY>
 ```
 
-Set `API_KEY` via `docker-compose.yml` or `.env`.
+Set `API_KEY` via environment variables.
+
+### Endpoints
+
+- `GET /campaign/:id/insights`
+
+Optional query parameters:
+- `from` (start date)
+- `to` (end date)
+- `platform` (filter by platform)
 
 Example:
+
 ```bash
-curl -H "Authorization: Bearer secret123" \
-  "http://localhost:8080/campaign/cmp-42/insights?from=2025-04-01&to=2025-04-20&platform=Google"
+curl -H "Authorization: Bearer secret123" http://localhost:8080/campaign/cmp-42/insights?from=2024-04-01&to=2024-04-20&platform=Google
 ```
 
 ---
 
-## 🔒 HTTPS & Secure Deployment
+## Metrics Computed
 
-- This project runs HTTP-only (via Gin) in dev
-- Use **Nginx**, **Cloudflare**, or **Kubernetes Ingress** with TLS certs for production
-- Store secrets like `API_KEY` securely using vaults, `.env`, or secret managers
-
----
-
-## ⚙️ Scaling Strategy
-
-- Local scaling: `docker-compose up --scale app=3`
-- Production scaling:
-  - Run on Kubernetes with Horizontal Pod Autoscaling
-  - Use managed Redis (ElastiCache, Memorystore)
-  - Use managed Postgres (RDS, Cloud SQL)
-  - Add load balancer (Nginx, GCP Load Balancer)
+- CTR = Clicks / Impressions
+- ROAS = Revenue / Cost
+- CPA = Cost / Conversions
 
 ---
 
-## 📊 Performance Benchmarking
-
-Install [`hey`](https://github.com/rakyll/hey) and run:
-```bash
-hey -n 1000 -c 50 -H "Authorization: Bearer secret123" \
-  http://localhost:8080/campaign/cmp-42/insights
-```
-This simulates 1000 requests with 50 concurrent clients.
-
----
-
-## 📥 Fake Data Simulation
-
-In `ingestion/streamer.go`, data is simulated like:
-```go
-CampaignID: fmt.Sprintf("cmp-%d", rand.Intn(100))
-Platform:   random from [Meta, Google, LinkedIn, TikTok]
-```
-New events are streamed every 2 seconds.
-
----
-
-## 🧪 Testing & Observability
-
-### View Logs
-```bash
-docker-compose logs -f
-```
-
-### Inspect DB
-```bash
-docker exec -it postgres psql -U postgres -d campaigns
-SELECT * FROM campaign_metrics LIMIT 5;
-```
-
-### Validate API
-```bash
-curl -H "Authorization: Bearer secret123" \
-  http://localhost:8080/campaign/cmp-42/insights
-```
-
----
-
-## 📦 Table Schema: `init.sql`
+## Database Schema (init.sql)
 
 ```sql
 CREATE TABLE IF NOT EXISTS campaign_metrics (
@@ -190,39 +159,61 @@ CREATE TABLE IF NOT EXISTS campaign_metrics (
 
 ---
 
-## 📈 Metrics Computed
-- **CTR** = Clicks / Impressions
-- **ROAS** = Revenue / Cost
-- **CPA** = Cost / Conversions
+## Fake Data Simulation
+
+When `DATA_SOURCE=fake`, random campaign metrics are generated every 2 seconds by `streamer.go`:
+
+- Random impressions, clicks, cost, revenue
+- Metrics processed and stored the same as real data
 
 ---
 
-## ✅ Summary
+## Scaling Strategy
 
-This project demonstrates a production-grade campaign analytics pipeline:
-- Real-time ingestion of ad metrics
-- Precomputed performance KPIs (CTR, ROAS, CPA)
-- Low-latency API powered by Redis
-- Secure, scalable, retry-safe, deduplicated architecture
+- Local scaling: `docker-compose up --scale app=3`
+- Production scaling:
+  - Deploy on Kubernetes (Horizontal Pod Autoscaler)
+  - Use managed Redis (ElastiCache, Memorystore)
+  - Use managed PostgreSQL (Amazon RDS, GCP Cloud SQL)
+  - Add Nginx/Cloud Load Balancer
 
-Can serve as a foundational backend for performance dashboards, real-time alerting, and marketing automation.
+---
 
+## Performance Benchmarking
 
-## ✅ Features Completed 
+Install [`hey`](https://github.com/rakyll/hey) and run:
+
+```bash
+hey -n 1000 -c 50 -H "Authorization: Bearer secret123" http://localhost:8080/campaign/cmp-42/insights
+```
+
+Simulates 1000 requests with 50 concurrent clients.
+
+---
+
+## Features Completed
 
 | Feature                                         | Status   | Notes                                                   |
 |--------------------------------------------------|----------|---------------------------------------------------------|
-| Real-time data ingestion                        | ✅ Done  | Simulated via Go with randomized events every 2 seconds |
-| Metric computation: CTR, ROAS, CPA              | ✅ Done  | Computed in aggregator.go                              |
-| PostgreSQL integration                          | ✅ Done  | Inserts, queries, and deduplication handled             |
-| Redis caching                                   | ✅ Done  | Cached insights via campaign-specific keys              |
-| REST API for insights                           | ✅ Done  | `/campaign/:id/insights` with filters                   |
-| API filters (date range, platform)              | ✅ Done  | Supports `from`, `to`, and `platform` params            |
-| Deduplication                                   | ✅ Done  | Enforced via unique constraint + insert skip            |
-| Retry mechanism for DB insert                   | ✅ Done  | 3x retries with delay on DB error                       |
-| API authentication (Bearer token)              | ✅ Done  | Requires `Authorization: Bearer <API_KEY>`              |
-| Docker Compose support                          | ✅ Done  | Runs full stack with `docker-compose up`                |
-| Table creation with `init.sql`                  | ✅ Done  | Automatically applied on Postgres init                 |
-| Performance benchmarking script (`hey`)         | ✅ Done  | Docs show how to simulate 1000 requests                 |
-| Scaling strategy documentation                  | ✅ Done  | Explained Docker/K8s options in README                  |
-| HTTPS/secure deployment notes                   | ✅ Done  | Recommends TLS via proxy + secret handling             |
+| Real-time ingestion from multiple platforms     | Completed | Meta, Google, TikTok, LinkedIn                          |
+| Fake data simulation fallback                   | Completed | Ingestion simulation mode                              |
+| Metric computation: CTR, ROAS, CPA              | Completed | In processor/aggregator.go                             |
+| PostgreSQL integration                          | Completed | Inserts and queries with deduplication                 |
+| Redis caching                                   | Completed | API caching using campaign IDs                         |
+| REST API for insights                           | Completed | /campaign/:id/insights endpoint                        |
+| API filters (date range, platform)              | Completed | Query parameters supported                             |
+| Deduplication on database                       | Completed | On conflict (campaign_id, timestamp) do nothing        |
+| Retry mechanism for DB inserts                  | Completed | Retry logic for transient DB errors                    |
+| API authentication (Bearer token)               | Completed | Simple secure access via Authorization header         |
+| Docker Compose orchestration                    | Completed | All services via docker-compose                        |
+| HTTPS and Secure Deployment Notes               | Completed | Production security best practices explained          |
+| Scaling strategy and performance notes          | Completed | Kubernetes, Load balancing, Horizontal scaling         |
+| Modular ingestion architecture                  | Completed | Separated files for each platform ingestion            |
+
+---
+
+## Summary
+
+This project demonstrates how to build a production-grade real-time ad analytics pipeline, capable of handling ingestion from real ad platforms, computing KPIs, serving REST APIs securely, caching frequently accessed data, and scaling seamlessly under increasing load.
+
+It can serve as the foundation for marketing dashboards, real-time reporting systems, and ad optimization platforms.

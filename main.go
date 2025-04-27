@@ -2,29 +2,44 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"os"
+	"time"
 
 	"campaign-analytics/api"
 	"campaign-analytics/ingestion"
 	"campaign-analytics/storage"
 )
 
-// main initializes all services: DB, Redis, ingestion, and starts the API server
 func main() {
-	// Step 1: Initialize database connection
+	// Initialize Postgres
 	if err := storage.InitDB(); err != nil {
-		log.Fatalf("Failed to connect to DB: %v", err)
+		fmt.Println("[ERROR] Failed to connect to DB:", err)
+		os.Exit(1)
 	}
 
-	// Step 2: Initialize Redis cache
+	// Initialize Redis
 	if err := storage.InitRedis(); err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		fmt.Println("[ERROR] Failed to connect to Redis:", err)
+		os.Exit(1)
+	}
+	fmt.Println("[INFO] Connected to Redis")
+
+	// Decide ingestion mode
+	mode := os.Getenv("DATA_SOURCE")
+	if mode == "real" {
+		fmt.Println("[BOOT] Running in REAL ingestion mode (Meta, Google, TikTok, LinkedIn)")
+		go ingestion.StartRealFetcher()
+	} else {
+		fmt.Println("[BOOT] Running in FAKE data simulation mode")
+		go ingestion.StartSimulator()
 	}
 
-	// Step 3: Start simulating data ingestion
-	ingestion.SimulateStream()
+	// Small delay to ensure ingestion is warmed up
+	time.Sleep(1 * time.Second)
 
-	// Step 4: Start REST API server
+	// Start API server
 	r := api.InitRouter()
+	fmt.Println("[INFO] API Server started at http://localhost:8080")
 	r.Run(":8080")
 }
