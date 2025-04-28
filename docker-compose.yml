@@ -1,10 +1,12 @@
-version: "3.8"  # Optional — can be removed as newer Compose ignores this
+version: "3.8"
 
 services:
   app:
-    build: .
-    image: campaign-analytics-app            # ✅ Image name for Docker to tag
-    container_name: campaign-analytics-app   # (Optional) Easier to debug with named container
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: campaign-analytics-app
+    container_name: campaign-analytics-app
     ports:
       - "8080:8080"
     depends_on:
@@ -17,27 +19,39 @@ services:
       - DB_NAME=campaigns
       - DB_PORT=5432
       - REDIS_HOST=redis
-      - API_KEY=secret123                    # ✅ API key for securing APIs
-      - DATA_SOURCE=fake                     # ✅ "fake" or "real"
-      - ENABLED_SOURCES=                     # ✅ only used when DATA_SOURCE=real
-      # --- Meta Ads Credentials (only needed if real) ---
+      - API_KEY=secret123
+      - DATA_SOURCE=fake
+      - ENABLED_SOURCES=
       - META_ACCESS_TOKEN=your_real_meta_token
       - META_AD_ACCOUNT_ID=act_your_ad_account_id
-      # --- Google Ads Credentials (only needed if real) ---
       - GOOGLE_ADS_ACCESS_TOKEN=your_google_access_token
       - GOOGLE_ADS_CUSTOMER_ID=your_google_customer_id
-      # --- TikTok Ads Credentials (only needed if real) ---
       - TIKTOK_ACCESS_TOKEN=your_tiktok_access_token
       - TIKTOK_ADVERTISER_ID=your_tiktok_advertiser_id
-      # --- LinkedIn Ads Credentials (only needed if real) ---
       - LINKEDIN_ACCESS_TOKEN=your_linkedin_access_token
       - LINKEDIN_ACCOUNT_ID=your_linkedin_account_id
-    restart: always
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    image: campaign-analytics-bot
+    container_name: campaign-analytics-bot
+    ports:
+      - "8081:8081"
+    depends_on:
+      - app
+      - postgres
+      - redis
+    environment:
+      - API_KEY=secret123
+    restart: unless-stopped
 
   postgres:
     image: postgres:14
     container_name: postgres
-    restart: always
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -46,12 +60,17 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
     container_name: redis
-    restart: always
+    restart: unless-stopped
     ports:
       - "6379:6379"
 

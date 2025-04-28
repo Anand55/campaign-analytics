@@ -217,3 +217,151 @@ Simulates 1000 requests with 50 concurrent clients.
 This project demonstrates how to build a production-grade real-time ad analytics pipeline, capable of handling ingestion from real ad platforms, computing KPIs, serving REST APIs securely, caching frequently accessed data, and scaling seamlessly under increasing load.
 
 It can serve as the foundation for marketing dashboards, real-time reporting systems, and ad optimization platforms.
+
+
+
+# Campaign Analytics Conversational Bot
+
+This project extends the real-time Campaign Analytics system with a lightweight conversational agent.  
+Users can query campaign insights using free-form prompts like:
+
+- "What’s the ROAS for my latest Google campaign?"
+- "Show me CTR trends for last week’s Meta campaigns."
+- "How much did I spend on LinkedIn ads this quarter?"
+
+---
+
+## Task Overview
+
+- Accept and parse free-form user prompts
+- Map them into structured queries (intent and filters)
+- Fetch campaign analytics from backend APIs
+- Format responses in conversational style
+- Support vector-based matching for fuzzy queries
+- Ready for future integration with Slack, WhatsApp, etc.
+
+---
+
+## Architecture
+
+[User Prompt] ➜ [Bot Server (Gin)] ↓ [Prompt Parser (Intent/Filters)] ↓ [Vector Search (Optional for fuzzy matching)] ↓ [Analytics API (Campaign App)] ↓ [Format into Conversational Response]
+
+
+- Bot Language: Go
+- Framework: Gin
+- Backend: Campaign Analytics App
+- Optional: Embedding generation and vector search (pgvector)
+
+---
+
+## Code Flow (High-Level)
+
+1. **bot_main.go**:  
+   Starts the Bot server on port `8081`.
+2. **handler.go**:  
+   Receives the `/prompt` POST request.
+3. **parser.go**:  
+   Parses the natural language prompt into structured **intent** and **filters**.
+4. **vector_search.go** *(optional)*:  
+   Uses vector embedding similarity to better understand complex prompts.
+5. **client.go**:  
+   Queries the Campaign Analytics API to fetch insights.
+6. **formatter.go**:  
+   Formats the API result into human-readable response text.
+7. Returns a final JSON response.
+
+---
+
+## Directory Structure
+
+campaign-analytics/ ├── bot/ │ ├── bot_main.go # Bot server entry point │ ├── handler.go # Receives and processes user prompt │ ├── parser.go # Parses prompts into structured intents │ ├── client.go # Fetches data from Campaign Analytics API │ ├── formatter.go # Formats the API response into text │ ├── vector_search.go # (Optional) Vector similarity matching │ ├── embedding.go # (Optional) Prompt embedding generator ├── Dockerfile.bot # Separate Dockerfile to build bot ├── docker-compose.yml # Multi-service orchestration
+
+
+---
+
+## Running Instructions
+
+### Prerequisites
+
+- Go 1.21+
+- Docker & Docker Compose
+- Campaign Analytics App (`app`) running on port `8080`
+- PostgreSQL with `pgvector` extension installed (only if vector search is used)
+
+---
+
+### Docker Compose Run
+
+```bash
+docker-compose down -v --remove-orphans
+docker-compose up --build
+```
+
+Bot will be available at:
+
+http://localhost:8081/prompt
+
+API Usage (Bot Server)
+Endpoint
+POST /prompt
+
+Request Body:
+
+
+Copy
+```
+{
+  "prompt": "Show me CTR trends for last week’s Meta campaigns."
+}
+```
+
+
+Example CURL:
+
+```bash
+
+curl -X POST http://localhost:8081/prompt \
+-H "Content-Type: application/json" \
+-d '{"prompt": "What is the ROAS for my latest Google campaign?"}'
+```
+
+Example Prompts and Responses
+
+User Prompt	Bot Response Example
+"What is the ROAS for my latest Google campaign?"	"The ROAS for your campaign is 7.82."
+"Show CTR for last week's Meta ads"	"The CTR for your campaign is 12.45%."
+"Spend for LinkedIn this quarter"	"You spent $1450.00 on LinkedIn this quarter."
+Vector Search and Embedding Support
+vector_search.go:
+Uses cosine similarity over text embeddings to better match fuzzy or unstructured prompts.
+
+embedding.go:
+Encodes prompts into vector embeddings using simple TF-IDF or external APIs (if added).
+
+Important Note:
+Currently a basic implementation; can later upgrade to OpenAI Embeddings, HuggingFace transformers, or pgvector extension in Postgres for production use.
+
+Future Extensibility
+Integrate with Slack Bot, WhatsApp Bot
+
+Upgrade parsing from keyword-matching → proper NLP (spaCy, transformers)
+
+Use semantic search (vector DB) instead of simple matching
+
+Improve prompt-to-SQL mapping automatically
+
+Add authentication for incoming user prompts
+
+Features Completed
+
+Feature	Status	Notes
+Free-form prompt ingestion	Completed	Supports basic campaign-related questions
+Intent and filter extraction	Completed	Metric + Platform + Dates parsing
+Backend Analytics API integration	Completed	Secure call with Bearer Token
+Conversational response formatting	Completed	User-friendly text responses
+Dockerized bot server	Completed	Runs via separate container
+Vector embedding and matching (optional)	Completed	Basic matching via cosine similarity
+Final Summary
+The Bot server adds a natural conversational layer on top of the real-time Campaign Analytics system.
+It turns structured campaign metrics into simple, intuitive human dialogue — and is designed to easily integrate with any chat-based interface in the future.
+

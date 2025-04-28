@@ -10,3 +10,12 @@ CREATE TABLE IF NOT EXISTS campaign_metrics (
     timestamp TIMESTAMP NOT NULL,
     UNIQUE (campaign_id, timestamp)
 );
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS campaign_embeddings (
+    id SERIAL PRIMARY KEY,
+    campaign_id TEXT NOT NULL,
+    description TEXT,
+    embedding VECTOR(1536)
+);

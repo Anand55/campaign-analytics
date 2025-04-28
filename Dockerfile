@@ -8,7 +8,9 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o analytics-app main.go
+# Build API server from cmd/api-server/main.go
+RUN go build -o analytics-app ./cmd/api-server/main.go
 
 EXPOSE 8080
+
 CMD ["./analytics-app"]

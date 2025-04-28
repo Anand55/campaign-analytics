@@ -1,0 +1,16 @@
+FROM golang:1.24
+
+WORKDIR /app
+
+COPY go.mod ./
+COPY go.sum ./
+RUN go mod download
+
+COPY . .
+
+# Build Bot server from cmd/bot-server/main.go
+RUN go build -o bot-app ./cmd/bot-server/main.go
+
+EXPOSE 8081
+
+CMD ["./bot-app"]
